@@ -134,8 +134,9 @@ public final class JvmContext {
         String procData;
         try {
             procData = getAvailablePids().get(pid);
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | InterruptedException exception) {
+            exception.printStackTrace();
+            return;
         }
 
         if (procData == null) {

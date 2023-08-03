@@ -94,8 +94,8 @@ public class AgentServer {
             this.server = ServerSocketChannel.open();
             this.server.bind(new InetSocketAddress(port));
             this.server.configureBlocking(true);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (IOException exception) {
+            throw new RuntimeException(exception);
         }
     }
 
@@ -170,7 +170,7 @@ public class AgentServer {
                                 } else {
                                     continue;
                                 }
-                            } catch (SocketTimeoutException e) {
+                            } catch (SocketTimeoutException exception) {
                                 // Socket has not read
                                 // anything, try to flush
                                 // the outgoing signal queue
@@ -216,7 +216,7 @@ public class AgentServer {
                                 }
                             }
                         }
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException ignored) {
                         break;
                     } catch (IOException exception) {
                         LOGGER.error("Disconnected due to ".concat(exception.getMessage()));
@@ -224,7 +224,7 @@ public class AgentServer {
                     } finally {
                         server.getLock().unlock();
                     }
-                } catch (InterruptedException e) {
+                } catch (InterruptedException exception) {
                     break;
                 }
             }

@@ -28,7 +28,34 @@ Will be soon...
 * Added **JDB** as main class of library
 * Removed wtf from **Enter**:
 ```java
-if (idx == 0) {
-    return null; // WTF Bro
+public class Main {
+
+    private static final Logger LOGGER = LogManager.getLogger(Main.class);
+
+    @SneakyThrows
+    public static void main(String[] args) {
+        JDB jdb = new JDB(true).start(); // Start the Agent server
+
+        Scanner scanner = new Scanner(System.in);
+        if (scanner.next() != null) { // Wait for a line in the console input, this is necessary, so you have time to run the jar file with the agent and find out the PIDs
+            jdb.getAviablePids().forEach((pid, cmd) -> {
+                LOGGER.info("Aviable PID: {} - {}", pid, cmd); // Printing active JVMs (pid and command line)
+            });
+        }
+        jdb.attach(scanner.nextInt()) // Attaching to the PID from console input
+                .setContext("Main", matches -> {
+                    LOGGER.info("Multiple matches found");
+                    for (int i = 0; i < matches.size(); i++)
+                        LOGGER.info(" {}: {}", i, matches.get(i).name());
+
+                    LOGGER.info("Selecting: {}", 0);
+                    return 0;
+                }) // Setting a context to Main class with 0 match
+                .setBreakpoint(5); // Set the breakpoint at 5 line of Main class
+        scanner.next(); // Wait for a line in the console input, this is necessary, so you have time for waiting a breakpoint
+        jdb.returns().forEach((methodName, returns) -> {
+            LOGGER.info("Returns of the {}: {}", methodName.name(), returns.type().name()); // Printing returns of the methods
+        });
+    }
 }
 ```
