@@ -16,12 +16,14 @@
  */
 package com.gmail.woodyc40.topics.server;
 
-import com.gmail.woodyc40.topics.Main;
 import com.gmail.woodyc40.topics.protocol.*;
 import com.google.common.collect.Queues;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.annotation.concurrent.GuardedBy;
 import java.io.*;
@@ -42,6 +44,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * The local server handler
  */
 public class AgentServer {
+
     /** The timeout for the server to shutdown */
     private static final long TIMEOUT_MS = 5000L;
 
@@ -82,6 +85,8 @@ public class AgentServer {
     @Setter
     @GuardedBy("lock")
     private SocketChannel conn;
+
+    private static final Logger LOGGER = LogManager.getLogger(AgentServer.class);
 
     private AgentServer(int port, Thread[] threads) {
         this.threads = threads;
@@ -213,8 +218,8 @@ public class AgentServer {
                         }
                     } catch (InterruptedException e) {
                         break;
-                    } catch (IOException e) {
-                        Main.printAsync("abort: disconnected");
+                    } catch (IOException exception) {
+                        LOGGER.error("Disconnected due to ".concat(exception.getMessage()));
                         break;
                     } finally {
                         server.getLock().unlock();
@@ -308,7 +313,8 @@ public class AgentServer {
         buf.putInt(id);
         buf.put(out.toByteArray());
 
-        ch.write(buf);
+        if (ch != null)
+            ch.write(buf);
     }
 
     /**

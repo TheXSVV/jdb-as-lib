@@ -23,15 +23,45 @@ import lombok.NoArgsConstructor;
  * Platform details.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public final class Platform {
-    /**
-     * Checks to determine whether the platform which this
-     * debugger is running is Windows.
-     *
-     * @return {@code true} if windows
-     */
+public enum Platform {
+
+    WINDOWS,
+    MAC,
+    LINUX,
+    OTHER;
+
+    private static Platform platform;
+
+    public static Platform getPlatform() {
+        if (platform == null) {
+            String osName = System.getProperty("os.name").toLowerCase();
+
+            if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix"))
+                platform = LINUX;
+            else if (osName.contains("win"))
+                platform = WINDOWS;
+            else if (osName.contains("mac"))
+                platform = MAC;
+            else
+                platform = OTHER;
+        }
+
+        return platform;
+    }
+
     public static boolean isWindows() {
-        String systemProp = System.getProperty("os.name");
-        return systemProp.toLowerCase().contains("win");
+        return getPlatform() == WINDOWS;
+    }
+
+    public static boolean isMac() {
+        return getPlatform() == MAC;
+    }
+
+    public static boolean isLinux() {
+        return getPlatform() == LINUX;
+    }
+
+    public static boolean isOther() {
+        return getPlatform() == OTHER;
     }
 }

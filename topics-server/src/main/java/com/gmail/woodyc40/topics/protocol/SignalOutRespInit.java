@@ -17,7 +17,6 @@
 package com.gmail.woodyc40.topics.protocol;
 
 import java.io.DataOutputStream;
-import java.io.IOException;
 
 /**
  * A signal sent to confirm the client initialization signal
@@ -26,7 +25,5 @@ import java.io.IOException;
  * None
  */
 public class SignalOutRespInit implements SignalOut {
-    @Override
-    public void write(DataOutputStream out) throws IOException {
-    }
+    @Override public void write(DataOutputStream out) {}
 }

@@ -16,8 +16,6 @@
  */
 package com.gmail.woodyc40.topics.infra;
 
-import com.gmail.woodyc40.topics.Main;
-import com.gmail.woodyc40.topics.cmd.LsJvm;
 import com.gmail.woodyc40.topics.server.AgentServer;
 import com.google.common.collect.Maps;
 import com.sun.jdi.*;
@@ -30,11 +28,14 @@ import com.sun.tools.jdi.ProcessAttachingConnector;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -47,6 +48,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @NotThreadSafe
 @RequiredArgsConstructor
 public final class JvmContext {
+
+    private static final Logger LOGGER = LogManager.getLogger(JvmContext.class);
+
     /** Instance of the context */
     private static volatile JvmContext instance;
     /** The collection of paths leading to class sources */
@@ -118,58 +122,45 @@ public final class JvmContext {
      * @param pid the process ID to attach
      */
     public void attach(int pid) {
-        if (pid < 0) {
-            System.out.println("failed");
-            return;
-        }
-
         if (this.currentPid == pid) {
-            System.out.println("process already attached");
+            LOGGER.warn("Process already attached!");
             return;
         }
 
         if (this.currentPid > 0) {
-            System.out.println();
-            System.out.println("Currently attached to " + this.currentPid);
-            String yn = Main.prompt("Do you really want to attach [Y/n]? ");
-            if (!yn.toLowerCase().equals("y") && !yn.toLowerCase().equals("yes")) {
-                System.out.println("abort");
-                return;
-            }
+            LOGGER.info("Currently attached to {}", this.currentPid);
         }
 
         String procData;
         try {
-            procData = LsJvm.getAvailablePids().get(pid);
+            procData = getAvailablePids().get(pid);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
 
         if (procData == null) {
-            System.out.println("no JVM with PID " + pid);
+            LOGGER.error("No JVM found with PID {}", pid);
             return;
         }
 
-        System.out.println("Attaching to " + pid + ": " + procData + "...");
+        LOGGER.info("Attaching to {}...", pid);
         this.currentPid = pid;
 
         List<AttachingConnector> connectors = Bootstrap.virtualMachineManager().attachingConnectors();
         ProcessAttachingConnector pac = null;
-        for (AttachingConnector connector : connectors) {
-            if (connector.name().equals("com.sun.jdi.ProcessAttach")) {
+        for (AttachingConnector connector : connectors)
+            if (connector.name().equals("com.sun.jdi.ProcessAttach"))
                 pac = (ProcessAttachingConnector) connector;
-            }
-        }
 
         if (pac == null) {
-            System.out.println("ProcessAttach not found");
+            LOGGER.error("ProcessAttach not found");
             return;
         }
 
         Map<String, Connector.Argument> args = pac.defaultArguments();
         Connector.Argument arg = args.get("pid");
         if (arg == null) {
-            System.out.println("corrupt transport");
+            LOGGER.error("Corrupt transport (pid not found in arguments)");
             return;
         }
 
@@ -205,14 +196,13 @@ public final class JvmContext {
                                         currentBreakpoint = e;
                                         resumeSet = eventSet;
                                     }
-                                    Main.printAsync("Hit breakpoint " + e.location().sourceName() + ":" + e.location().lineNumber());
+                                    LOGGER.info("Hit breakpoint {}: {}", e.location().sourceName(), e.location().lineNumber());
 
                                     String string = lookupLine(e.location().declaringType().name(), e.location().lineNumber(), 3);
                                     if (string != null && !string.isEmpty()) {
-                                        Main.printAsync("Code context:");
-                                        Main.printAsync(string);
+                                        LOGGER.info("Code context:");
+                                        LOGGER.info(string);
                                     }
-                                } else if (event instanceof MethodEntryEvent) {
                                 } else if (event instanceof MethodExitEvent) {
                                     MethodExitEvent exit = (MethodExitEvent) event;
                                     Value value = exit.returnValue();
@@ -226,7 +216,7 @@ public final class JvmContext {
                                     try {
                                         frame = thread.frames().get(0);
                                     } catch (IncompatibleThreadStateException e) {
-                                        System.out.println("abort: wrong thread state");
+                                        LOGGER.error("Wrong thread state");
                                         continue;
                                     }
 
@@ -247,12 +237,13 @@ public final class JvmContext {
             });
             this.breakpointListener.setDaemon(true);
             this.breakpointListener.start();
-        } catch (IOException | IllegalConnectorArgumentsException e) {
+        } catch (IOException | IllegalConnectorArgumentsException exception) {
             this.currentPid = -1;
-            throw new RuntimeException(e);
+            exception.printStackTrace();
+            return;
         }
 
-        System.out.println("Successfully attached to " + pid);
+        LOGGER.info("Successfully attached to {}", pid);
     }
 
     /**
@@ -263,7 +254,7 @@ public final class JvmContext {
             return;
         }
 
-        System.out.println("Detached from JVM " + this.currentPid);
+        LOGGER.info("Detached from JVM {}", this.currentPid);
         this.currentPid = -1;
 
         if (this.breakpointListener != null) {
@@ -295,6 +286,58 @@ public final class JvmContext {
     }
 
     /**
+     * Obtains the available JVM PIDs running on the current
+     * system.
+     *
+     * @return a mapping of PIDs to process path
+     * @throws IOException if the system cannot be polled
+     * @throws InterruptedException if the process did not
+     * exit
+     */
+    public Map<Integer, String> getAvailablePids() throws IOException, InterruptedException {
+        Map<Integer, String> availablePids = Maps.newHashMap();
+        String[] cmd = Platform.isWindows() ? new String[] { "wmic", "process", "where", "\"name='java.exe'\"", "get", "commandline,processid" } :
+                new String[] { "/bin/sh", "-c", "ps -e --format pid,args | grep java" };
+        Process ls = new ProcessBuilder().
+                command(cmd).
+                start();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(ls.getInputStream()))) {
+            if (Platform.isWindows()) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty() || line.startsWith("CommandLine")) {
+                        continue;
+                    }
+
+                    line = line.trim();
+                    int point = line.lastIndexOf("  ");
+                    String pid = line.substring(point + 2);
+                    String procName = line.substring(0, 200).trim();
+                    availablePids.put(Integer.parseInt(pid), procName + (procName.length() < 200 ? "" : "..."));
+                }
+            } else {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty() || line.contains("grep java")) {
+                        continue;
+                    }
+
+                    line = line.trim();
+                    int firstSeparator = line.indexOf(' ');
+                    String pid = line.substring(0, firstSeparator);
+                    String procName = line.substring(firstSeparator + 1, firstSeparator + 100).trim();
+                    availablePids.put(Integer.parseInt(pid), procName + (procName.length() < 100 ? "" : "...  "));
+                }
+            }
+        }
+
+        ls.waitFor();
+        ls.destroy();
+        return availablePids;
+    }
+
+    /**
      * Looksup the source line with the given location
      * information and amount of context.
      *
@@ -309,9 +352,8 @@ public final class JvmContext {
         if (path == null) {
             return null;
         } else {
-            try {
-                StringBuilder builder = new StringBuilder();
-                BufferedReader reader = Files.newBufferedReader(path);
+            StringBuilder builder = new StringBuilder();
+            try (BufferedReader reader = Files.newBufferedReader(path)) {
                 for (int i = 1; ; i++) {
                     String line = reader.readLine();
                     if (i >= ln - context && i <= ln + context) {

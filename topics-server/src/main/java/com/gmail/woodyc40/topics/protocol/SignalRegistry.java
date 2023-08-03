@@ -18,6 +18,8 @@ package com.gmail.woodyc40.topics.protocol;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.Constructor;
@@ -32,6 +34,9 @@ import java.util.Map;
 @ThreadSafe
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SignalRegistry {
+
+    private static final Logger LOGGER = LogManager.getLogger(SignalRegistry.class);
+
     /** Out packets */
     private static final Map<Class<? extends SignalOut>, Integer> OUT_SIGNALS = new HashMap<>();
     /** In packets */
@@ -82,9 +87,8 @@ public final class SignalRegistry {
      */
     public static SignalIn readSignal(int id) {
         Constructor<? extends SignalIn> constructor = IN_SIGNALS.get(id);
-        if (constructor == null) {
+        if (constructor == null)
             throw new RuntimeException("No signal: IN " + id);
-        }
 
         try {
             return constructor.newInstance();
@@ -102,23 +106,9 @@ public final class SignalRegistry {
      */
     public static int writeSignal(SignalOut out) {
         Integer integer = OUT_SIGNALS.get(out.getClass());
-        if (integer == null) {
+        if (integer == null)
             throw new IllegalStateException("No signal OUT: " + out.getClass().getSimpleName());
-        }
 
         return integer;
-    }
-
-    /**
-     * Prints out the registry table.
-     */
-    public static void print() {
-        System.out.println("IN TABLE");
-        IN_SIGNALS.forEach((k, v) -> System.out.println(k + ": " + v.getDeclaringClass().getSimpleName()));
-        System.out.println();
-
-        System.out.println("OUT TABLE");
-        OUT_SIGNALS.forEach((k, v) -> System.out.println(v + ": " + k.getSimpleName()));
-        System.out.println();
     }
 }

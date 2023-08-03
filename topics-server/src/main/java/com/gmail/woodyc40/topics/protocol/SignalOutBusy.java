@@ -17,7 +17,6 @@
 package com.gmail.woodyc40.topics.protocol;
 
 import java.io.DataOutputStream;
-import java.io.IOException;
 
 /**
  * Sent to the client whenever the server is not able to
@@ -26,7 +25,5 @@ import java.io.IOException;
  * Empty
  */
 public class SignalOutBusy implements SignalOut {
-    @Override
-    public void write(DataOutputStream out) throws IOException {
-    }
+    @Override public void write(DataOutputStream out) {}
 }

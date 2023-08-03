@@ -17,7 +17,6 @@
 package com.gmail.woodyc40.topics.protocol;
 
 import java.io.DataInputStream;
-import java.io.IOException;
 
 /**
  * Notifies the server that the client has successfully
@@ -26,8 +25,9 @@ import java.io.IOException;
  * None
  */
 public class SignalInInit implements SignalIn {
+
     @Override
-    public void read(DataInputStream inputStream) throws IOException {
+    public void read(DataInputStream inputStream) {
         // int pid = inputStream.readInt();
     }
 }

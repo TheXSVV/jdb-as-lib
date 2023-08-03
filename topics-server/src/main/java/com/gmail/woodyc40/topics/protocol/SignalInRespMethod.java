@@ -87,7 +87,7 @@ public class SignalInRespMethod implements SignalIn {
 
                         VirtualMachine vm = JvmContext.getContext().getVm();
                         EventRequestManager erm = vm.eventRequestManager();
-                        ReferenceType type = vm.classesByName(owner.replaceAll("/", "\\.")).get(0);
+                        ReferenceType type = vm.classesByName(owner.replaceAll("/", ".")).get(0);
                         for (Method method : type.methodsByName(na)) {
                             if (method.signature().equals(de) &&
                                     !method.isConstructor()) {
