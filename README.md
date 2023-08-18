@@ -16,18 +16,6 @@ java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n -javaagent:topics-age
 # Demo usage:
 
 ```java
-Will be soon...
-```
-
-### Original Developer: caojohnny
-### My Changes:
-* Updated **lombok** to **1.18.28**
-* Updated **guava** to **30.0-jre**
-* Added **log4** logger
-* Rewritten **Platform**
-* Added **JDB** as main class of library
-* Removed wtf from **Enter**:
-```java
 public class Main {
 
     private static final Logger LOGGER = LogManager.getLogger(Main.class);
@@ -59,3 +47,12 @@ public class Main {
     }
 }
 ```
+
+### Original Developer: caojohnny
+### My Changes:
+* Updated **lombok** to **1.18.28**
+* Updated **guava** to **30.0-jre**
+* Added **log4** logger
+* Rewritten **Platform**
+* Added **JDB** as main class of library
+* Removed wtf from **Enter**
